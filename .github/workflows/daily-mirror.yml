@@ -24,9 +24,8 @@ jobs:
           restore-keys: kylepounds-site-
 
       - name: Mirror kylepounds.com (HTML and CSS only — images proxied by nginx)
-        timeout-minutes: 20
         run: |
-          wget \
+          timeout 18m wget \
             --recursive \
             --level=3 \
             --no-parent \
