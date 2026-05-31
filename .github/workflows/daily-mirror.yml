@@ -32,7 +32,7 @@ jobs:
             root@$VPS_HOST:/opt/kp-mirror/scripts/
 
           # Run mirror + process + scan on the VPS (incremental, files already on disk)
-          ssh -p $VPS_PORT -i /tmp/deploy_key -o StrictHostKeyChecking=no root@$VPS_HOST \
-            "bash /opt/kp-mirror/scripts/mirror-and-deploy.sh"
+          SSH="ssh -p $VPS_PORT -i /tmp/deploy_key -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=20"
+          $SSH root@$VPS_HOST "bash /opt/kp-mirror/scripts/mirror-and-deploy.sh"
 
           rm -f /tmp/deploy_key
