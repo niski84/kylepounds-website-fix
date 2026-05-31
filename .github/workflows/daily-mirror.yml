@@ -1,0 +1,76 @@
+name: Daily Mirror & Build v2
+
+on:
+  schedule:
+    - cron: "0 7 * * *"   # 7am UTC every day
+  workflow_dispatch:        # allow manual trigger from GitHub UI
+
+permissions:
+  contents: read
+
+jobs:
+  mirror-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Mirror kylepounds.com (HTML and CSS only — images proxied by nginx)
+        run: |
+          wget \
+            --recursive \
+            --level=5 \
+            --no-parent \
+            --accept="html,htm,css" \
+            --timeout=20 \
+            --tries=2 \
+            --wait=0.3 \
+            --user-agent="Mozilla/5.0 (compatible; site-archiver)" \
+            --directory-prefix=site \
+            "https://kylepounds.com/" || true
+          echo "Mirror done: $(find site -type f | wc -l) files"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install beautifulsoup4 lxml
+
+      - name: Inject no-flash background (prevents white/dark FOUC)
+        run: python3 scripts/inject_noflash.py site/kylepounds.com/
+
+      - name: Fix mixed content (http:// Flickr → https://)
+        run: python3 scripts/fix_mixed_content.py site/kylepounds.com/
+
+      - name: Inject base href (fixes recursive nav links)
+        run: python3 scripts/inject_basehref.py site/kylepounds.com/
+
+      - name: Strip third-party trackers (hitwebcounter, Cloudflare beacon)
+        run: python3 scripts/strip_trackers.py site/kylepounds.com/
+
+      - name: Inject Kyle Pounce banner into all HTML files
+        run: python3 scripts/inject_banner.py site/kylepounds.com/ $(date +%Y-%m-%d)
+
+      - name: Inject hosted font stylesheet into all HTML files
+        run: python3 scripts/inject_fonts.py site/kylepounds.com/
+
+      - name: Deploy to VPS
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
+          VPS_HOST: 96.126.96.40
+          VPS_PORT: 479
+        run: |
+          echo "$VPS_SSH_KEY" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          rsync -az --delete --exclude='fonts/' --exclude='kp.html' --exclude='kyle-pounds.mp3' \
+            -e "ssh -p $VPS_PORT -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
+            site/kylepounds.com/ \
+            root@$VPS_HOST:/var/www/kylepounds.org/
+          # Notify Kyle Pounce to trigger a new scan
+          ssh -p $VPS_PORT -i /tmp/deploy_key -o StrictHostKeyChecking=no root@$VPS_HOST \
+            "curl -s -c /tmp/sp.txt -X POST http://localhost:8211/api/login -H 'Content-Type: application/json' -d '{\"password\":\"excellent\"}' && curl -s -b /tmp/sp.txt -X POST http://localhost:8211/api/scan || true"
+          rm -f /tmp/deploy_key
+          echo "Deploy complete"
