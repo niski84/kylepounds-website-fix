@@ -1,6 +1,9 @@
 #!/bin/bash
-# Runs on the VPS — parallel incremental mirror of kylepounds.com HTML/CSS,
-# processes files in-place, then triggers a site-patrol scan.
+# Runs on the VPS — serial polite incremental mirror of kylepounds.com.
+# The original 6-parallel-wget-with-no-wait setup tripped GlowHost's auto-
+# firewall (cPHulk/CSF), which blocked the VPS IP entirely for hours after
+# each daily run. We now do one section at a time with --wait + --limit-rate.
+# Trades ~10 extra minutes of runtime for not being rate-banned.
 set -e
 
 SITE=/var/www/kylepounds.org
@@ -14,24 +17,33 @@ WGET_ARGS=(
   --no-parent
   --accept="html,htm,css"
   --timestamping
-  --timeout=15
-  --tries=1
-  --user-agent="Mozilla/5.0 (compatible; site-archiver)"
+  --timeout=20
+  --tries=2
+  # Politeness flags — keep GlowHost's auto-block happy:
+  --wait=1                # 1s between consecutive requests
+  --random-wait           # adds 0.5-1.5x jitter to --wait
+  --limit-rate=300k       # cap bandwidth
+  --user-agent="Mozilla/5.0 (compatible; kylepounds-mirror/2.0; +https://kylepounds.org)"
   --directory-prefix="$SITE"
   -q
 )
 
-echo "=== Kyle Pounce mirror: $DATE ==="
-echo "[1/4] Mirroring HTML/CSS in parallel (no wait, incremental)..."
+SECTIONS=(
+  "https://kylepounds.com/"
+  "https://kylepounds.com/About%20Me/"
+  "https://kylepounds.com/Education/"
+  "https://kylepounds.com/News/"
+  "https://kylepounds.com/Sports/"
+  "https://kylepounds.com/Travel/"
+)
 
-# Crawl root + each top-level section simultaneously
-wget "${WGET_ARGS[@]}" "https://kylepounds.com/" &
-wget "${WGET_ARGS[@]}" "https://kylepounds.com/About%20Me/" &
-wget "${WGET_ARGS[@]}" "https://kylepounds.com/Education/" &
-wget "${WGET_ARGS[@]}" "https://kylepounds.com/News/" &
-wget "${WGET_ARGS[@]}" "https://kylepounds.com/Sports/" &
-wget "${WGET_ARGS[@]}" "https://kylepounds.com/Travel/" &
-wait
+echo "=== Kyle Pounce mirror: $DATE ==="
+echo "[1/4] Mirroring HTML/CSS sequentially with politeness gates..."
+
+for url in "${SECTIONS[@]}"; do
+  echo "  → $url"
+  wget "${WGET_ARGS[@]}" "$url" || echo "  WARN: section failed (likely blocked); continuing"
+done
 
 FILES=$(find "$SITE/kylepounds.com" -name '*.html' -o -name '*.htm' -o -name '*.css' 2>/dev/null | wc -l)
 ELAPSED=$(( $(date +%s) - START ))
