@@ -31,7 +31,7 @@ BANNER = (
     ' &nbsp;&middot;&nbsp; Mirrored from '
     '<a href="https://kylepounds.com" style="color:#fff;opacity:.85;text-decoration:none;" rel="nofollow">kylepounds.com</a>'
     ' &nbsp;&middot;&nbsp; Last synced: ' + MIRROR_DATE +
-    ' &nbsp;&middot;&nbsp; Fonts hosted &nbsp;&middot;&nbsp; Links fixed'
+    ' &nbsp;&middot;&nbsp; Adobe fonts working &nbsp;&middot;&nbsp; Links fixed'
     '</span>'
     '<a href="/patrol/" style="'
     'background:rgba(0,0,0,.25);'

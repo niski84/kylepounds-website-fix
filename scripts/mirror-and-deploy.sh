@@ -22,7 +22,7 @@ WGET_ARGS=(
 )
 
 echo "=== Kyle Pounce mirror: $DATE ==="
-echo "[1/3] Mirroring HTML/CSS in parallel (no wait, incremental)..."
+echo "[1/4] Mirroring HTML/CSS in parallel (no wait, incremental)..."
 
 # Crawl root + each top-level section simultaneously
 wget "${WGET_ARGS[@]}" "https://kylepounds.com/" &
@@ -37,15 +37,28 @@ FILES=$(find "$SITE/kylepounds.com" -name '*.html' -o -name '*.htm' -o -name '*.
 ELAPSED=$(( $(date +%s) - START ))
 echo "Mirror done: $FILES files on disk in ${ELAPSED}s"
 
-echo "[2/3] Processing HTML..."
+echo "[2/4] Processing HTML..."
 python3 "$SCRIPTS/inject_noflash.py"      "$SITE/kylepounds.com/"
 python3 "$SCRIPTS/fix_mixed_content.py"   "$SITE/kylepounds.com/"
 python3 "$SCRIPTS/inject_basehref.py"     "$SITE/kylepounds.com/"
+python3 "$SCRIPTS/inject_viewport.py"     "$SITE/kylepounds.com/"
+python3 "$SCRIPTS/wrap_nav.py"            "$SITE/kylepounds.com/"
 python3 "$SCRIPTS/strip_trackers.py"      "$SITE/kylepounds.com/"
 python3 "$SCRIPTS/inject_banner.py"       "$SITE/kylepounds.com/" "$DATE"
 python3 "$SCRIPTS/inject_fonts.py"        "$SITE/kylepounds.com/"
+python3 "$SCRIPTS/build_fonts_css.py"     "$SITE/../fonts" 2>/dev/null || python3 "$SCRIPTS/build_fonts_css.py" /var/www/kylepounds.org/fonts
 
-echo "[3/3] Triggering site-patrol scan..."
+echo "[3/4] Rebuilding archive search index..."
+if [ -x /opt/site-patrol/kp-ingest ]; then
+  /opt/site-patrol/kp-ingest \
+    -root "$SITE/kylepounds.com" \
+    -db /opt/site-patrol/data/archive.db \
+    -host kylepounds.org || echo "WARN: ingest failed (continuing)"
+else
+  echo "WARN: /opt/site-patrol/kp-ingest not found — skipping archive index"
+fi
+
+echo "[4/4] Triggering site-patrol scan..."
 curl -s -c /tmp/sp.txt -X POST http://localhost:8211/api/login \
   -H 'Content-Type: application/json' -d '{"password":"excellent"}' > /dev/null
 curl -s -b /tmp/sp.txt -X POST http://localhost:8211/api/scan > /dev/null
