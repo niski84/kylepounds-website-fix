@@ -120,6 +120,7 @@ python3 "$SCRIPTS/wrap_nav.py"            "$SITE/kylepounds.com/"
 python3 "$SCRIPTS/strip_trackers.py"      "$SITE/kylepounds.com/"
 python3 "$SCRIPTS/inject_banner.py"       "$SITE/kylepounds.com/" "$DATE"
 python3 "$SCRIPTS/inject_fonts.py"        "$SITE/kylepounds.com/"
+python3 "$SCRIPTS/fix_image_src.py"       "$SITE/kylepounds.com/"
 python3 "$SCRIPTS/build_fonts_css.py"     "$SITE/../fonts" 2>/dev/null || python3 "$SCRIPTS/build_fonts_css.py" /var/www/kylepounds.org/fonts
 
 echo "[3/4] Rebuilding archive search index..."

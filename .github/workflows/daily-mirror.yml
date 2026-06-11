@@ -16,7 +16,72 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Push scripts to VPS and run mirror
+      - name: Pre-flight — check if kylepounds.com is reachable from this runner
+        id: preflight
+        run: |
+          if curl -sI -m 10 https://kylepounds.com -o /dev/null; then
+            echo "reachable=true" >> "$GITHUB_OUTPUT"
+            echo "kylepounds.com reachable from runner"
+          else
+            echo "reachable=false" >> "$GITHUB_OUTPUT"
+            echo "kylepounds.com unreachable from runner — will skip mirror, run VPS-only steps"
+          fi
+
+      # Mirror runs on the GitHub Actions runner (fresh IP each run — not the blocked VPS IP).
+      - name: Mirror HTML/CSS on runner
+        if: steps.preflight.outputs.reachable == 'true'
+        run: |
+          mkdir -p ./mirror-output
+          SECTIONS=(
+            "https://kylepounds.com/"
+            "https://kylepounds.com/About%20Me/"
+            "https://kylepounds.com/Education/"
+            "https://kylepounds.com/News/"
+            "https://kylepounds.com/Sports/"
+            "https://kylepounds.com/Travel/"
+          )
+          CONSECUTIVE_FAILS=0
+          for url in "${SECTIONS[@]}"; do
+            echo "  → $url"
+            if wget \
+                --recursive --level=3 --no-parent \
+                --accept="html,htm,css" \
+                --timeout=20 --tries=2 \
+                --wait=2 --random-wait \
+                --limit-rate=200k \
+                --user-agent="Mozilla/5.0 (compatible; kylepounds-mirror/2.1; +https://kylepounds.org)" \
+                --directory-prefix=./mirror-output \
+                -q "$url"; then
+              CONSECUTIVE_FAILS=0
+            else
+              CONSECUTIVE_FAILS=$((CONSECUTIVE_FAILS + 1))
+              echo "  ✗ section failed. Consecutive: $CONSECUTIVE_FAILS"
+              if [ $CONSECUTIVE_FAILS -ge 2 ]; then
+                echo "  STOP — 2 consecutive failures; aborting mirror"
+                break
+              fi
+            fi
+            sleep 15
+          done
+          echo "Mirror done: $(find ./mirror-output -name '*.html' -o -name '*.htm' 2>/dev/null | wc -l) HTML files"
+
+      - name: Process HTML on runner
+        if: steps.preflight.outputs.reachable == 'true'
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          SITE=./mirror-output/kylepounds.com
+          python3 scripts/inject_noflash.py     "$SITE/"
+          python3 scripts/fix_mixed_content.py  "$SITE/"
+          python3 scripts/inject_basehref.py    "$SITE/"
+          python3 scripts/inject_viewport.py    "$SITE/"
+          python3 scripts/wrap_nav.py           "$SITE/"
+          python3 scripts/strip_trackers.py     "$SITE/"
+          python3 scripts/inject_banner.py      "$SITE/" "$DATE"
+          python3 scripts/inject_fonts.py       "$SITE/"
+          python3 scripts/fix_image_src.py      "$SITE/"
+
+      - name: Push processed mirror to VPS
+        if: steps.preflight.outputs.reachable == 'true'
         env:
           VPS_SSH_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
           VPS_HOST: 96.126.96.40
@@ -24,15 +89,28 @@ jobs:
         run: |
           echo "$VPS_SSH_KEY" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
+          rsync -az --delete \
+            -e "ssh -p $VPS_PORT -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
+            ./mirror-output/kylepounds.com/ \
+            root@$VPS_HOST:/var/www/kylepounds.org/kylepounds.com/
+          rm -f /tmp/deploy_key
 
-          # Push latest scripts to VPS
+      - name: Push scripts + run VPS-only steps (fonts, ingest, scan)
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
+          VPS_HOST: 96.126.96.40
+          VPS_PORT: 479
+        run: |
+          echo "$VPS_SSH_KEY" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          SSH_OPTS="-p $VPS_PORT -i /tmp/deploy_key -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=20"
+
+          # Always push latest scripts (needed for fonts + manual VPS runs)
           rsync -az \
             -e "ssh -p $VPS_PORT -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
-            scripts/ \
-            root@$VPS_HOST:/opt/kp-mirror/scripts/
+            scripts/ root@$VPS_HOST:/opt/kp-mirror/scripts/
 
-          # Run mirror + process + scan on the VPS (incremental, files already on disk)
-          SSH="ssh -p $VPS_PORT -i /tmp/deploy_key -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=20"
-          $SSH root@$VPS_HOST "bash /opt/kp-mirror/scripts/mirror-and-deploy.sh"
+          # Run VPS-only steps: rebuild fonts.css, kp-ingest, trigger scan
+          ssh $SSH_OPTS root@$VPS_HOST "bash /opt/kp-mirror/scripts/vps-post-deploy.sh"
 
           rm -f /tmp/deploy_key
