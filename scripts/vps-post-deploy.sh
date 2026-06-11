@@ -11,8 +11,13 @@ SCRIPTS=/opt/kp-mirror/scripts
 STATE_LOG=/var/log/kp-mirror-state.log
 DATE=$(date +%Y-%m-%dT%H:%M:%SZ)
 
-python3 "$SCRIPTS/build_fonts_css.py" "$SITE/../fonts" 2>/dev/null \
-  || python3 "$SCRIPTS/build_fonts_css.py" /var/www/kylepounds.org/fonts
+FONTS_DIR=/var/www/kylepounds.org/fonts
+
+# Convert any new/updated OTF files to WOFF2 (idempotent — skips up-to-date)
+python3 "$SCRIPTS/convert_to_woff2.py" "$FONTS_DIR"
+
+# Rebuild fonts.css + google-fonts.css from whatever's on disk
+python3 "$SCRIPTS/build_fonts_css.py" "$FONTS_DIR"
 
 if [ -x /opt/site-patrol/kp-ingest ]; then
   /opt/site-patrol/kp-ingest \
