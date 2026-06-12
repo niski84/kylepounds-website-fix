@@ -33,6 +33,18 @@ BANNER = (
     ' &nbsp;&middot;&nbsp; Last synced: ' + MIRROR_DATE +
     ' &nbsp;&middot;&nbsp; Adobe fonts working &nbsp;&middot;&nbsp; Links fixed'
     '</span>'
+    '<span id="kp-pod" style="'
+    'flex:1;'
+    'text-align:center;'
+    'padding:0 20px;'
+    'font-size:12px;'
+    'opacity:0;'
+    'transition:opacity .5s;'
+    'white-space:nowrap;'
+    'overflow:hidden;'
+    'text-overflow:ellipsis;'
+    '"></span>'
+    '<span style="display:flex;gap:6px;flex-shrink:0">'
     '<a href="/patrol/#audit" style="'
     'background:rgba(0,0,0,.25);'
     'color:#fff;'
@@ -40,7 +52,6 @@ BANNER = (
     'padding:3px 10px;'
     'border-radius:4px;'
     'text-decoration:none;'
-    'margin-right:6px;'
     '">Audit Doc</a>'
     '<a href="/patrol/" style="'
     'background:rgba(0,0,0,.25);'
@@ -50,12 +61,33 @@ BANNER = (
     'border-radius:4px;'
     'text-decoration:none;'
     '">Dashboard &rarr;</a>'
-    '</div>'
+    '</span>'
+    '</div>\n'
+    '<script>(function(){'
+    'try{fetch("/api/podcasts")'
+    '.then(function(r){return r.json()})'
+    '.then(function(eps){'
+    'var ep=(eps||[]).find(function(e){return e.status==="published"});'
+    'if(!ep)return;'
+    'var d=new Date(ep.release_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});'
+    'var el=document.getElementById("kp-pod");'
+    'if(!el)return;'
+    'var t=ep.title.replace(/&/g,"&amp;").replace(/</g,"&lt;");'
+    'el.innerHTML="&#x1F3A7; <strong>Kyle Pounce Podcast</strong>"'
+    '+"&nbsp;&mdash;&nbsp;"'
+    '+"<a href=\\"/patrol/podcasts/"+ep.id+"\\" style=\\"color:#fff;text-decoration:underline;font-weight:bold\\">"'
+    '+t+"</a>"'
+    '+"&nbsp;&middot;&nbsp;"+d'
+    '+"&nbsp;&nbsp;<a href=\\"/patrol/podcasts/"+ep.id+"\\" style=\\"background:rgba(255,255,255,.2);color:#fff;padding:2px 9px;border-radius:3px;font-size:11px;text-decoration:none;margin-left:4px\\">Listen &rarr;</a>";'
+    'el.style.opacity="1";'
+    '}).catch(function(){})'
+    '}catch(e){}'
+    '})();</script>'
 )
 
-# Strip any previous banner variant
+# Strip any previous banner variant (including the inline podcast script)
 OLD_BANNER_RE = re.compile(
-    r'<!-- Kyle Pounce Banner -->\n<div[^>]*>.*?</div>\n?',
+    r'<!-- Kyle Pounce Banner -->\n<div[^>]*>.*?</div>\n?(?:<script>.*?</script>\n?)?',
     re.DOTALL
 )
 
