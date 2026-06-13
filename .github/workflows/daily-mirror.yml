@@ -86,15 +86,23 @@ jobs:
         run: |
           DATE=$(date +%Y-%m-%d)
           SITE=./mirror-output/kylepounds.com
-          python3 scripts/inject_noflash.py     "$SITE/"
-          python3 scripts/fix_mixed_content.py  "$SITE/"
-          python3 scripts/remove_basehref.py    "$SITE/"
-          python3 scripts/inject_viewport.py    "$SITE/"
-          python3 scripts/wrap_nav.py           "$SITE/"
-          python3 scripts/strip_trackers.py     "$SITE/"
-          python3 scripts/inject_banner.py      "$SITE/" "$DATE"
-          python3 scripts/inject_fonts.py       "$SITE/"
-          python3 scripts/fix_image_src.py      "$SITE/"
+          # wrap_nav.py needs BeautifulSoup; the runner doesn't ship it. Without
+          # this the whole Process step died (ModuleNotFoundError: bs4) every time
+          # the mirror actually ran.
+          python3 -m pip install --quiet beautifulsoup4 lxml || echo "::warning::pip install failed"
+          # Resilient: a single script failing (missing dep, odd partial content)
+          # must NOT red-fail the job and block deploy. Run each tolerantly; the
+          # deploy step is already guarded to additive-only on a short mirror.
+          run_pass() { echo "→ $1"; python3 "scripts/$1" "$SITE/" "${@:2}" || echo "::warning::$1 failed (continuing)"; }
+          run_pass inject_noflash.py
+          run_pass fix_mixed_content.py
+          run_pass remove_basehref.py
+          run_pass inject_viewport.py
+          run_pass wrap_nav.py
+          run_pass strip_trackers.py
+          run_pass inject_banner.py "$DATE"
+          run_pass inject_fonts.py
+          run_pass fix_image_src.py
 
       - name: Push processed mirror to VPS
         if: steps.preflight.outputs.reachable == 'true'
@@ -103,21 +111,20 @@ jobs:
           VPS_HOST: 96.126.96.40
           VPS_PORT: 479
         run: |
-          echo "$VPS_SSH_KEY" > /tmp/deploy_key
-          chmod 600 /tmp/deploy_key
-          # Safety: a partial/blocked mirror must NOT --delete the live archive.
-          # Only sync with --delete when the mirror looks complete; otherwise
-          # deploy additively (refresh/add only) so the served site never shrinks.
+          # Safety gate: only deploy a mirror that looks COMPLETE. A short mirror
+          # means kylepounds.com blocked the runner mid-crawl — deploying it would
+          # just re-push a random subset (or truncated pages) over our known-good
+          # archive. Better to keep what we have and wait for a complete run.
           COUNT=$(find ./mirror-output/kylepounds.com -name '*.html' -o -name '*.htm' 2>/dev/null | wc -l)
           echo "Mirrored $COUNT HTML files"
-          if [ "$COUNT" -ge 1500 ]; then
-            DELETE_FLAG="--delete"
-            echo "Mirror looks complete — syncing with --delete"
-          else
-            DELETE_FLAG=""
-            echo "⚠ Only $COUNT pages (likely partial/blocked) — additive sync, NO --delete, to protect the archive"
+          if [ "$COUNT" -lt 1500 ]; then
+            echo "::warning::Mirror incomplete ($COUNT pages, likely blocked) — SKIPPING deploy to protect the live archive."
+            exit 0
           fi
-          rsync -az $DELETE_FLAG \
+          echo "$VPS_SSH_KEY" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          echo "Mirror looks complete — syncing with --delete"
+          rsync -az --delete \
             -e "ssh -p $VPS_PORT -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
             ./mirror-output/kylepounds.com/ \
             root@$VPS_HOST:/var/www/kylepounds.org/kylepounds.com/
