@@ -114,7 +114,12 @@ log_state "OK" "$SECTIONS_OK/${#SECTIONS[@]} sections fetched in ${ELAPSED}s, $F
 echo "[2/4] Processing HTML..."
 python3 "$SCRIPTS/inject_noflash.py"      "$SITE/kylepounds.com/"
 python3 "$SCRIPTS/fix_mixed_content.py"   "$SITE/kylepounds.com/"
-python3 "$SCRIPTS/inject_basehref.py"     "$SITE/kylepounds.com/"
+# NOTE: was inject_basehref.py — that injected <base href="https://kylepounds.org/">
+# which forced every page-relative link (fragments, ../, same-dir) to resolve from
+# the domain root, breaking them. We mirror without --convert-links, so Kyle's
+# links are already page-relative and correct with NO base tag (as on .com).
+# remove_basehref.py strips any stray base tag so resolution matches kylepounds.com.
+python3 "$SCRIPTS/remove_basehref.py"     "$SITE/kylepounds.com/"
 python3 "$SCRIPTS/inject_viewport.py"     "$SITE/kylepounds.com/"
 python3 "$SCRIPTS/wrap_nav.py"            "$SITE/kylepounds.com/"
 python3 "$SCRIPTS/strip_trackers.py"      "$SITE/kylepounds.com/"

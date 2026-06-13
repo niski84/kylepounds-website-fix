@@ -28,7 +28,7 @@ Plus structural issues: every page is wrapped in 100+ nested layout tables, font
 2. **Process** — eight Python passes that patch the mirror in place:
    - `inject_noflash.py` — sets `color-scheme: light` + white bg before external CSS loads
    - `fix_mixed_content.py` — rewrites `http:` resource URLs to `https:`
-   - `inject_basehref.py` — adds `<base href="https://kylepounds.org/">` so relative links work
+   - `remove_basehref.py` — strips any `<base>` tag so Kyle's page-relative links (fragments, `../`, same-dir) resolve against each page's real URL, exactly like kylepounds.com. (Replaced `inject_basehref.py`, which forced every relative link to resolve from the domain root and broke same-page anchors like `#Timeline1`.)
    - `inject_viewport.py` — adds responsive viewport meta (fixes ~270 findings)
    - `wrap_nav.py` — wraps Kyle's section table in `<nav role="navigation">` (fixes ~90 findings)
    - `strip_trackers.py` — removes dead analytics scripts

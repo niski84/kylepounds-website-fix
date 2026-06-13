@@ -72,7 +72,7 @@ jobs:
           SITE=./mirror-output/kylepounds.com
           python3 scripts/inject_noflash.py     "$SITE/"
           python3 scripts/fix_mixed_content.py  "$SITE/"
-          python3 scripts/inject_basehref.py    "$SITE/"
+          python3 scripts/remove_basehref.py    "$SITE/"
           python3 scripts/inject_viewport.py    "$SITE/"
           python3 scripts/wrap_nav.py           "$SITE/"
           python3 scripts/strip_trackers.py     "$SITE/"

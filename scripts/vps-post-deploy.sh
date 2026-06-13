@@ -13,6 +13,18 @@ DATE=$(date +%Y-%m-%dT%H:%M:%SZ)
 
 FONTS_DIR=/var/www/kylepounds.org/fonts
 
+# Publish the freshly-processed mirror to the SERVED docroot.
+# nginx serves Kyle's pages from $SITE/<section>/... (the docroot root), but the
+# GitHub Actions runner rsyncs the processed mirror into $SITE/kylepounds.com/
+# (a staging subdir). Without this overlay the live site stays frozen while the
+# subdir updates daily — exactly the "stale site" bug. We overlay subdir -> root
+# WITHOUT --delete so our custom files (kp.html, bike-school.html, fonts/,
+# favicons, transparent.png, kyle-pounds.mp3, podcasts/) are preserved, and we
+# exclude the staging subdir itself so it isn't nested into the root.
+echo "Publishing mirror to served docroot (overlay, no --delete)..."
+rsync -a "$SITE/kylepounds.com/" "$SITE/" --exclude="/kylepounds.com"
+echo "Served HTML pages now: $(find "$SITE" -name '*.html' -not -path '*/kylepounds.com/*' | wc -l)"
+
 # Convert any new/updated OTF files to WOFF2 (idempotent — skips up-to-date)
 python3 "$SCRIPTS/convert_to_woff2.py" "$FONTS_DIR"
 
