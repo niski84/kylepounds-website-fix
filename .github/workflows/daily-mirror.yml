@@ -11,6 +11,8 @@ permissions:
 jobs:
   mirror-and-deploy:
     runs-on: ubuntu-latest
+    # Backstop so a stuck mirror fails fast instead of burning the full 6h GH cap.
+    timeout-minutes: 300
 
     steps:
       - name: Checkout repo
@@ -32,19 +34,27 @@ jobs:
         if: steps.preflight.outputs.reachable == 'true'
         run: |
           mkdir -p ./mirror-output
+          # IMPORTANT: never recurse the site ROOT at depth>1. A single
+          # "https://kylepounds.com/" at --level=3 crawls the ENTIRE site in one
+          # wget — that's what hung the job for 6h (it never got past section 1).
+          # Mirror the homepage shallow (level 1), then each section deep, and
+          # hard-cap every section with `timeout` so one slow/looping section
+          # can't eat the whole job. Format: "<level> <url>".
           SECTIONS=(
-            "https://kylepounds.com/"
-            "https://kylepounds.com/About%20Me/"
-            "https://kylepounds.com/Education/"
-            "https://kylepounds.com/News/"
-            "https://kylepounds.com/Sports/"
-            "https://kylepounds.com/Travel/"
+            "1 https://kylepounds.com/"
+            "3 https://kylepounds.com/About%20Me/"
+            "3 https://kylepounds.com/Education/"
+            "3 https://kylepounds.com/News/"
+            "3 https://kylepounds.com/Sports/"
+            "3 https://kylepounds.com/Travel/"
           )
+          PER_SECTION_CAP=2700   # 45 min hard ceiling per section
           CONSECUTIVE_FAILS=0
-          for url in "${SECTIONS[@]}"; do
-            echo "  → $url"
-            if wget \
-                --recursive --level=3 --no-parent \
+          for entry in "${SECTIONS[@]}"; do
+            level="${entry%% *}"; url="${entry#* }"
+            echo "  → (level $level) $url"
+            if timeout "$PER_SECTION_CAP" wget \
+                --recursive --level="$level" --no-parent \
                 --accept="html,htm,css" \
                 --timeout=20 --tries=2 \
                 --wait=2 --random-wait \
@@ -54,11 +64,17 @@ jobs:
                 -q "$url"; then
               CONSECUTIVE_FAILS=0
             else
-              CONSECUTIVE_FAILS=$((CONSECUTIVE_FAILS + 1))
-              echo "  ✗ section failed. Consecutive: $CONSECUTIVE_FAILS"
-              if [ $CONSECUTIVE_FAILS -ge 2 ]; then
-                echo "  STOP — 2 consecutive failures; aborting mirror"
-                break
+              rc=$?
+              if [ $rc -eq 124 ]; then
+                echo "  ⏱ section hit ${PER_SECTION_CAP}s cap — partial content kept, moving on"
+                CONSECUTIVE_FAILS=0   # a cap-hit isn't a connectivity failure
+              else
+                CONSECUTIVE_FAILS=$((CONSECUTIVE_FAILS + 1))
+                echo "  ✗ section failed (wget exit $rc). Consecutive: $CONSECUTIVE_FAILS"
+                if [ $CONSECUTIVE_FAILS -ge 2 ]; then
+                  echo "  STOP — 2 consecutive failures; aborting mirror"
+                  break
+                fi
               fi
             fi
             sleep 15
@@ -89,7 +105,19 @@ jobs:
         run: |
           echo "$VPS_SSH_KEY" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
-          rsync -az --delete \
+          # Safety: a partial/blocked mirror must NOT --delete the live archive.
+          # Only sync with --delete when the mirror looks complete; otherwise
+          # deploy additively (refresh/add only) so the served site never shrinks.
+          COUNT=$(find ./mirror-output/kylepounds.com -name '*.html' -o -name '*.htm' 2>/dev/null | wc -l)
+          echo "Mirrored $COUNT HTML files"
+          if [ "$COUNT" -ge 1500 ]; then
+            DELETE_FLAG="--delete"
+            echo "Mirror looks complete — syncing with --delete"
+          else
+            DELETE_FLAG=""
+            echo "⚠ Only $COUNT pages (likely partial/blocked) — additive sync, NO --delete, to protect the archive"
+          fi
+          rsync -az $DELETE_FLAG \
             -e "ssh -p $VPS_PORT -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
             ./mirror-output/kylepounds.com/ \
             root@$VPS_HOST:/var/www/kylepounds.org/kylepounds.com/
