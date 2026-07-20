@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bike School — Ride. Learn. Level Up.</title>
+<meta name="description" content="Earn your education by pedaling. Local tribes, podcast-powered rides, and a community built around Kyle Pounds' archive. Beta launching soon.">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --rainbow: linear-gradient(90deg, #b827fc 0%, #2c90fc 25%, #b8fd33 50%, #fec837 75%, #fd1892 100%);
+    --bg: #080810;
+    --surface: #111120;
+    --border: rgba(255,255,255,.08);
+    --text: #e8e8f0;
+    --muted: rgba(232,232,240,.5);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── Rainbow stripe ── */
+  .stripe {
+    height: 4px;
+    background: var(--rainbow);
+  }
+
+  /* ── Nav ── */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-decoration: none;
+    background: var(--rainbow);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .nav-link {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color .2s;
+  }
+  .nav-link:hover { color: var(--text); }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center;
+    padding: 100px 24px 80px;
+    position: relative;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 800px 400px at 50% 0%, rgba(184,39,252,.12), transparent);
+    pointer-events: none;
+  }
+  .eyebrow {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: #b8fd33;
+    background: rgba(184,253,51,.1);
+    border: 1px solid rgba(184,253,51,.25);
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 28px;
+  }
+  h1 {
+    font-size: clamp(52px, 10vw, 96px);
+    font-weight: 900;
+    letter-spacing: -2px;
+    line-height: 1;
+    background: var(--rainbow);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 24px;
+  }
+  .hero-sub {
+    font-size: clamp(16px, 2.5vw, 22px);
+    color: var(--muted);
+    max-width: 560px;
+    margin: 0 auto 48px;
+    line-height: 1.5;
+  }
+  .hero-sub strong { color: var(--text); }
+
+  /* ── Signup form ── */
+  .signup-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 32px;
+    max-width: 480px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .signup-box::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 17px;
+    background: var(--rainbow);
+    z-index: -1;
+    opacity: .4;
+  }
+  .signup-box h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .signup-box p {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+  .form-row {
+    display: flex;
+    gap: 10px;
+  }
+  .form-row input[type="email"] {
+    flex: 1;
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-size: 15px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .form-row input[type="email"]:focus {
+    border-color: rgba(44,144,252,.5);
+  }
+  .form-row input[type="email"]::placeholder { color: var(--muted); }
+  .btn-join {
+    background: var(--rainbow);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 22px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity .2s, transform .15s;
+    text-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  .btn-join:hover { opacity: .9; transform: translateY(-1px); }
+  .btn-join:active { transform: translateY(0); }
+  .form-note {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 12px;
+    text-align: center;
+  }
+  #signup-success {
+    display: none;
+    text-align: center;
+    padding: 16px;
+  }
+  #signup-success .check { font-size: 36px; margin-bottom: 8px; }
+  #signup-success p { color: #b8fd33; font-weight: 600; }
+  #signup-error {
+    display: none;
+    color: #fd1892;
+    font-size: 13px;
+    margin-top: 10px;
+    text-align: center;
+  }
+
+  /* ── Stats bar ── */
+  .stats {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    padding: 48px 24px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .stat-item { text-align: center; }
+  .stat-num {
+    font-size: 36px;
+    font-weight: 900;
+    background: var(--rainbow);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: block;
+  }
+  .stat-label { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  /* ── Features ── */
+  .section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
+  .section-title {
+    text-align: center;
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 800;
+    letter-spacing: -.5px;
+    margin-bottom: 12px;
+  }
+  .section-sub {
+    text-align: center;
+    color: var(--muted);
+    font-size: 16px;
+    margin-bottom: 56px;
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    transition: border-color .2s, transform .2s;
+  }
+  .feature-card:hover {
+    border-color: rgba(255,255,255,.18);
+    transform: translateY(-2px);
+  }
+  .feature-icon {
+    font-size: 32px;
+    margin-bottom: 16px;
+    display: block;
+  }
+  .feature-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  .feature-card p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+  /* ── How it works ── */
+  .how-section {
+    padding: 80px 24px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 32px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .step { text-align: center; }
+  .step-num {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--rainbow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 900;
+    margin: 0 auto 16px;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  .step h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+  .step p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+  /* ── Tribe section ── */
+  .tribe-section { padding: 80px 24px; max-width: 900px; margin: 0 auto; }
+  .tribe-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: center;
+  }
+  @media (max-width: 640px) { .tribe-grid { grid-template-columns: 1fr; } }
+  .tribe-text h2 { font-size: 32px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 16px; }
+  .tribe-text p { color: var(--muted); font-size: 15px; line-height: 1.7; margin-bottom: 12px; }
+  .rank-list { list-style: none; margin-top: 20px; }
+  .rank-list li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .rank-list li:last-child { border-bottom: none; }
+  .rank-badge {
+    font-size: 20px;
+    width: 32px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .rank-name { font-weight: 700; }
+  .rank-req { color: var(--muted); font-size: 12px; }
+
+  .tribe-visual {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    text-align: center;
+  }
+  .tribe-visual .big-icon { font-size: 72px; margin-bottom: 16px; display: block; }
+  .tribe-visual p { color: var(--muted); font-size: 13px; }
+
+  /* ── CTA bottom ── */
+  .cta-section {
+    text-align: center;
+    padding: 100px 24px;
+    position: relative;
+  }
+  .cta-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 600px 300px at 50% 100%, rgba(253,24,146,.08), transparent);
+    pointer-events: none;
+  }
+  .cta-section h2 {
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    letter-spacing: -.5px;
+    margin-bottom: 16px;
+  }
+  .cta-section p { color: var(--muted); font-size: 16px; max-width: 480px; margin: 0 auto 40px; }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  footer p { color: var(--muted); font-size: 12px; }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="stripe"></div>
+
+<nav>
+  <a href="/" class="nav-logo">⚡ Kyle Pounce</a>
+  <a href="#signup" class="nav-link">Join Beta →</a>
+</nav>
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <div class="eyebrow">🚲 Beta — Coming Soon</div>
+  <h1>Bike School</h1>
+  <p class="hero-sub">
+    <strong>Earn your education by pedaling.</strong> Local tribes, podcast-powered rides, and a
+    community built around Kyle Pounds' archive of fitness, history, and knowledge.
+  </p>
+
+  <div class="signup-box" id="signup">
+    <h2>Be First In. Join the Beta.</h2>
+    <p>Drop your email and we'll let you know when Bike School opens its doors.</p>
+    <form id="signup-form">
+      <div class="form-row">
+        <input type="email" id="email-input" placeholder="your@email.com" required autocomplete="email">
+        <button type="submit" class="btn-join">Claim My Spot</button>
+      </div>
+      <p class="form-note">No spam. Just your beta invite when it's ready.</p>
+      <p id="signup-error"></p>
+    </form>
+    <div id="signup-success">
+      <div class="check">🎉</div>
+      <p>You're on the list! We'll be in touch.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Stats ── -->
+<div class="stats">
+  <div class="stat-item">
+    <span class="stat-num">5,000+</span>
+    <div class="stat-label">Kyle Pounds videos in the archive</div>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">~500hrs</span>
+    <div class="stat-label">of pedal-worthy content</div>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">∞</span>
+    <div class="stat-label">watts of knowledge</div>
+  </div>
+</div>
+
+<!-- ── Features ── -->
+<section class="section">
+  <h2 class="section-title">What is Bike School?</h2>
+  <p class="section-sub">Part fitness tracker, part social club, part knowledge archive. Built around the content and ethos of Kyle Pounds.</p>
+  <div class="features">
+    <div class="feature-card">
+      <span class="feature-icon">🎧</span>
+      <h3>Podcasts You Earn</h3>
+      <p>New episodes unlock as you log ride time. The archive runs deep — get pedaling and work your way through it.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🗺️</span>
+      <h3>Local Tribes</h3>
+      <p>A tribe leader plants a flag on the map, claims their area, and schedules meetups. Find your people within riding distance.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">📊</span>
+      <h3>Strava-Style Metrics</h3>
+      <p>Log your watts, ride weight, incline, and cadence. Your performance feeds directly into your character ranking.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🏆</span>
+      <h3>Character Progression</h3>
+      <p>Two scores: Participation (events attended, activity) and Bike School Progress (podcast milestones reached). Your public profile shows both.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">📅</span>
+      <h3>Real-World Meetups</h3>
+      <p>Tribe leaders host rides on their schedule. Attend and earn seniority. Hosts can charge an entry fee or keep it free.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">💬</span>
+      <h3>Moderated Community</h3>
+      <p>A tight-knit, heavily moderated space to trade routes, challenge each other's watts, and talk the content you're riding to.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── How it works ── -->
+<div class="how-section">
+  <div class="section">
+    <h2 class="section-title">How It Works</h2>
+    <p class="section-sub">Simple loop. Ride, learn, level up, repeat.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Create Your Profile</h3>
+        <p>Set up your character. Log your bike specs — weight, geometry, whatever affects your watts.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Join or Found a Tribe</h3>
+        <p>Find a local tribe leader and sign up, or claim an unclaimed territory and start your own.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Ride &amp; Listen</h3>
+        <p>Queue up Kyle's podcasts, hit the road, and log your ride. The more you pedal, the more you unlock.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>Show Up &amp; Earn</h3>
+        <p>Attend your tribe's meetups. Each appearance adds to your seniority score and visible rank.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tribe / Ranks ── -->
+<section class="tribe-section">
+  <div class="tribe-grid">
+    <div class="tribe-text">
+      <h2>Your Rank Is Earned,<br>Not Bought.</h2>
+      <p>Every rank in Bike School is a reflection of actual time in the saddle, content consumed, and community participation. No shortcuts.</p>
+      <p>Inspired by Kyle's roots and ethos — the hierarchy reflects dedication, not dollars.</p>
+      <ul class="rank-list">
+        <li>
+          <span class="rank-badge">🌱</span>
+          <div>
+            <div class="rank-name">Initiate</div>
+            <div class="rank-req">Just started. First ride logged.</div>
+          </div>
+        </li>
+        <li>
+          <span class="rank-badge">🚲</span>
+          <div>
+            <div class="rank-name">Rider</div>
+            <div class="rank-req">10 ride hours + 5 episodes completed</div>
+          </div>
+        </li>
+        <li>
+          <span class="rank-badge">⚡</span>
+          <div>
+            <div class="rank-name">Pacer</div>
+            <div class="rank-req">50 ride hours + 20 episodes + 3 meetups</div>
+          </div>
+        </li>
+        <li>
+          <span class="rank-badge">🔥</span>
+          <div>
+            <div class="rank-name">Watt Warrior</div>
+            <div class="rank-req">200 ride hours + full season + tribe events</div>
+          </div>
+        </li>
+        <li>
+          <span class="rank-badge">👑</span>
+          <div>
+            <div class="rank-name">Tribe Leader</div>
+            <div class="rank-req">Claimed territory. Running active meetups.</div>
+          </div>
+        </li>
+      </ul>
+    </div>
+    <div class="tribe-visual">
+      <span class="big-icon">🌍</span>
+      <h3 style="font-size:18px;font-weight:700;margin-bottom:8px;">Tribes Worldwide</h3>
+      <p>Anyone can plant a flag and claim their territory. A tribe is just a group of riders who show up for each other — and for the content.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Bottom CTA ── -->
+<section class="cta-section">
+  <h2>Ready to Ride?</h2>
+  <p>We're building this now. Get on the beta list and be among the first to claim your territory.</p>
+  <div class="signup-box" style="margin:0 auto;max-width:420px;text-align:left;">
+    <h2>Join the Beta</h2>
+    <p>First wave invites go out to the list. Don't miss it.</p>
+    <form id="signup-form-2">
+      <div class="form-row">
+        <input type="email" id="email-input-2" placeholder="your@email.com" required autocomplete="email">
+        <button type="submit" class="btn-join">Join Beta</button>
+      </div>
+      <p class="form-note">Built on Kyle Pounds' 5,000+ video archive. Free to join. Free to ride.</p>
+      <p id="signup-error-2" style="display:none;color:#fd1892;font-size:13px;margin-top:10px;text-align:center;"></p>
+    </form>
+    <div id="signup-success-2" style="display:none;text-align:center;padding:16px;">
+      <div style="font-size:36px;margin-bottom:8px;">🎉</div>
+      <p style="color:#b8fd33;font-weight:600;">You're on the list!</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>© 2026 Bike School &nbsp;·&nbsp; <a href="/">Kyle Pounce</a> &nbsp;·&nbsp; Powered by <a href="/patrol/">Site Patrol</a></p>
+  <p>Built on the archive of <a href="https://kylepounds.com" rel="nofollow">Kyle Pounds</a></p>
+</footer>
+
+<script>
+(function() {
+  function handleForm(formId, inputId, errId, successId) {
+    var form = document.getElementById(formId);
+    if (!form) return;
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var email = document.getElementById(inputId).value.trim();
+      var errEl = document.getElementById(errId);
+      var btn = form.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      btn.textContent = 'Joining…';
+      errEl.style.display = 'none';
+      fetch('/patrol/api/bike-school/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.error) {
+          errEl.textContent = data.error;
+          errEl.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Claim My Spot';
+        } else {
+          form.style.display = 'none';
+          document.getElementById(successId).style.display = 'block';
+        }
+      })
+      .catch(function() {
+        errEl.textContent = 'Something went wrong. Try again.';
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Claim My Spot';
+      });
+    });
+  }
+  handleForm('signup-form',   'email-input',   'signup-error',   'signup-success');
+  handleForm('signup-form-2', 'email-input-2', 'signup-error-2', 'signup-success-2');
+})();
+</script>
+</body>
+</html>
