@@ -44,5 +44,13 @@ curl -s -c /tmp/sp.txt -X POST http://localhost:8211/api/login \
   -H 'Content-Type: application/json' -d '{"password":"excellent"}' > /dev/null
 curl -s -b /tmp/sp.txt -X POST http://localhost:8211/api/scan > /dev/null
 
+# Update site-patrol LLM models to latest DeepSeek V4 Flash if still on the old slug.
+# (The old deepseek/deepseek-v4-flash was deprecated by OpenRouter and returns
+# "User not found" — this keeps the VPS in sync with the local config.)
+ENV_FILE=/opt/site-patrol/.env
+sed -i 's/^KYLE_ANSWER_MODEL=deepseek\/deepseek-v4-flash$/KYLE_ANSWER_MODEL=deepseek\/deepseek-v4-flash-0731/' "$ENV_FILE"
+sed -i 's/^KYLE_CLAIMS_MODEL=deepseek\/deepseek-chat$/KYLE_CLAIMS_MODEL=deepseek\/deepseek-v4-flash-0731/' "$ENV_FILE"
+systemctl restart site-patrol
+
 echo "$DATE OK vps-post-deploy complete" >> "$STATE_LOG"
 echo "VPS post-deploy done"
