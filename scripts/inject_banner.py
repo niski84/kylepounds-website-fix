@@ -1,151 +1,58 @@
 #!/usr/bin/env python3
-"""Inject Kyle Pounce banner into all HTML files after <body> (top of page).
+"""Refresh archive navigation and current news on every mirrored HTML page."""
+import argparse
+from pathlib import Path
+import re
+import sys
+from build_news import build, header, posts, THEME, ASSET_VERSION
 
-Usage: inject_banner.py <root_dir> [mirror_date]
-  mirror_date: YYYY-MM-DD, defaults to today
-"""
-import os, re, sys
-from datetime import date
+OLD = re.compile(r'<!-- Kyle Pounce Banner -->\s*<div[^>]*>.*?</div>\s*(?:<script>.*?</script>\s*)?', re.DOTALL)
+CURRENT = re.compile(r'<!-- kp-archive-header:start -->.*?<!-- kp-archive-header:end -->', re.DOTALL)
+HEAD_ASSETS = re.compile(r'<!-- kp-news-assets:start -->.*?<!-- kp-news-assets:end -->', re.DOTALL)
+BODY = re.compile(r'(<body\b[^>]*>)', re.IGNORECASE)
+HEAD = re.compile(r'(<head\b[^>]*>)', re.IGNORECASE)
+ASSETS = '<!-- kp-news-assets:start --><meta name="color-scheme" content="dark light">' + THEME + f'<link rel="stylesheet" href="/news/news.css?v={ASSET_VERSION}"><script defer src="/news/news.js?v={ASSET_VERSION}"></script><!-- kp-news-assets:end -->'
 
-MIRROR_DATE = sys.argv[2] if len(sys.argv) > 2 else date.today().strftime('%Y-%m-%d')
 
-BANNER = (
-    '<!-- Kyle Pounce Banner -->\n'
-    '<div style="'
-    'background:linear-gradient(90deg,#b827fc 0%,#2c90fc 25%,#b8fd33 50%,#fec837 75%,#fd1892 100%);'
-    'color:#fff;'
-    'font-family:Arial,sans-serif;'
-    'font-size:12px;'
-    'font-weight:bold;'
-    'padding:6px 20px;'
-    'display:flex;'
-    'flex-wrap:wrap;'
-    'align-items:center;'
-    'justify-content:space-between;'
-    'gap:8px;'
-    'letter-spacing:.3px;'
-    'text-shadow:0 1px 3px rgba(0,0,0,.4);'
-    '">'
-    '<span>'
-    '&#x26A1; <a href="/kp.html" style="color:#fff;text-decoration:none;">Kyle Pounce</a>'
-    ' &nbsp;&middot;&nbsp; Mirrored from '
-    '<a href="https://kylepounds.com" style="color:#fff;opacity:.85;text-decoration:none;" rel="nofollow">kylepounds.com</a>'
-    ' &nbsp;&middot;&nbsp; Last synced: ' + MIRROR_DATE +
-    ' &nbsp;&middot;&nbsp; Adobe fonts working &nbsp;&middot;&nbsp; Links fixed'
-    '</span>'
-    '<span id="kp-pod" style="'
-    'flex:1;'
-    'text-align:center;'
-    'padding:0 20px;'
-    'font-size:12px;'
-    'opacity:0;'
-    'transition:opacity .5s;'
-    'white-space:nowrap;'
-    'overflow:hidden;'
-    'text-overflow:ellipsis;'
-    '"></span>'
-    '<span style="display:flex;gap:6px;flex-shrink:0">'
-    '<a href="/bike-school.html" style="'
-    'background:rgba(0,0,0,.3);'
-    'color:#b8fd33;'
-    'font-size:11px;'
-    'font-weight:bold;'
-    'padding:3px 10px;'
-    'border-radius:4px;'
-    'text-decoration:none;'
-    'border:1px solid rgba(184,253,51,.3);'
-    '">&#x1F6B2; Bike School Beta</a>'
-    '<a href="/patrol/#audit" style="'
-    'background:rgba(0,0,0,.25);'
-    'color:#fff;'
-    'font-size:11px;'
-    'padding:3px 10px;'
-    'border-radius:4px;'
-    'text-decoration:none;'
-    '">Audit Doc</a>'
-    '<a href="/patrol/" style="'
-    'background:rgba(0,0,0,.25);'
-    'color:#fff;'
-    'font-size:11px;'
-    'padding:3px 10px;'
-    'border-radius:4px;'
-    'text-decoration:none;'
-    '">Dashboard &rarr;</a>'
-    '</span>'
-    '</div>\n'
-    '<script>(function(){'
-    'var el=document.getElementById("kp-pod");'
-    'if(!el)return;'
-    'var parts=[];'
-    'var done=0;'
-    'function render(){'
-    '  if(parts.length){'
-    '    el.innerHTML=parts.join("<span style=\'color:rgba(255,255,255,.4);margin:0 10px\'>|</span>");'
-    '    el.style.opacity="1";'
-    '  }'
-    '}'
-    'try{'
-    '  fetch("/api/podcasts").then(function(r){return r.json()}).then(function(eps){'
-    '    var ep=(eps||[]).find(function(e){return e.status==="published"});'
-    '    if(ep){'
-    '      var d=new Date(ep.release_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});'
-    '      var t=ep.title.replace(/&/g,"&amp;").replace(/</g,"&lt;");'
-    '      parts.push("&#x1F3A7; <strong>Kyle Pounce Podcast</strong> &mdash; "'
-    '        +"<a href=\\"/patrol/podcasts/"+ep.id+"\\" style=\\"color:#fff;text-decoration:underline;font-weight:bold\\">"+t+"</a>"'
-    '        +" &middot; "+d'
-    '        +"&nbsp;<a href=\\"/patrol/podcasts/"+ep.id+"\\" style=\\"background:rgba(255,255,255,.2);color:#fff;padding:2px 9px;border-radius:3px;font-size:11px;text-decoration:none;margin-left:4px\\">Listen &rarr;</a>");'
-    '    }'
-    '    if(++done===2)render();'
-    '  }).catch(function(){if(++done===2)render();});'
-    '  fetch("/api/videos/latest").then(function(r){return r.json()}).then(function(v){'
-    '    if(v&&v.youtube_id){'
-    '      var ago=v.days_ago===0?"today":v.days_ago===1?"yesterday":v.days_ago+"d ago";'
-    '      var t=(v.title||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").substring(0,60);'
-    '      if(t.length===60)t+="…";'
-    '      parts.push("&#x1F4FA; <strong>Latest Video</strong> &mdash; "'
-    '        +"<a href=\\"https://youtu.be/"+v.youtube_id+"\\" target=\\"_blank\\" style=\\"color:#fff;text-decoration:underline;font-weight:bold\\">"+t+"</a>"'
-    '        +" &middot; "+ago);'
-    '    }'
-    '    if(++done===2)render();'
-    '  }).catch(function(){if(++done===2)render();});'
-    '}catch(e){}'
-    '})();</script>'
-)
+def transform(content, banner):
+    if '<html lang="en" class="kp-news' in content:
+        return content  # Builder owns complete news pages.
+    content = OLD.sub('', content)
+    content = CURRENT.sub('', content)
+    content = HEAD_ASSETS.sub('', content)
+    # A previous pass pinned the original body to light. Keep its legacy body
+    # styling, while letting the new header respect the visitor's preference.
+    content = re.sub(r'<meta name="color-scheme" content="light">', '', content)
+    content = HEAD.sub(lambda m: m[1] + ASSETS, content, count=1)
+    return BODY.sub(lambda m: m[1] + banner, content, count=1)
 
-# Strip any previous banner variant (including the inline podcast script)
-OLD_BANNER_RE = re.compile(
-    r'<!-- Kyle Pounce Banner -->\n<div[^>]*>.*?</div>\n?(?:<script>.*?</script>\n?)?',
-    re.DOTALL
-)
 
-BODY_RE = re.compile(r'(<body[^>]*>)', re.IGNORECASE)
-
-root = sys.argv[1] if len(sys.argv) > 1 else '.'
-patched = skipped = 0
-
-for dirpath, dirs, files in os.walk(root):
-    for fname in files:
-        if not fname.lower().endswith(('.html', '.htm')):
+def inject(root):
+    root = Path(root)
+    build(root)
+    banner = header(posts())
+    patched = errors = 0
+    for path in root.rglob('*'):
+        if path.suffix.lower() not in ('.html', '.htm') or root / 'news' in path.parents:
             continue
-        fpath = os.path.join(dirpath, fname)
         try:
-            with open(fpath, 'r', encoding='utf-8', errors='replace') as f:
-                content = f.read()
-        except Exception as e:
-            skipped += 1
-            continue
+            content = path.read_text(encoding='utf-8', errors='replace')
+            if not BODY.search(content):
+                continue
+            updated = transform(content, banner)
+            if content != updated:
+                path.write_text(updated, encoding='utf-8')
+                patched += 1
+        except OSError as error:
+            errors += 1
+            print(f'Cannot update {path}: {error}', file=sys.stderr)
+    print(f'Archive header updated: {patched} files; errors: {errors}')
+    if errors:
+        raise SystemExit(1)
 
-        # Strip any existing banner (so we can re-inject updated version)
-        content = OLD_BANNER_RE.sub('', content)
 
-        # Inject after <body>
-        new_content, n = BODY_RE.subn(r'\1\n' + BANNER, content, count=1)
-        if n == 0:
-            skipped += 1
-            continue
-
-        with open(fpath, 'w', encoding='utf-8', errors='replace') as f:
-            f.write(new_content)
-        patched += 1
-
-print(f'Banner injected: {patched} files, skipped: {skipped}')
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('root', nargs='?', default='.')
+    parser.add_argument('mirror_date', nargs='?')  # Compatibility with both deploy scripts.
+    inject(parser.parse_args().root)

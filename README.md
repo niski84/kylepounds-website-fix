@@ -32,7 +32,7 @@ Plus structural issues: every page is wrapped in 100+ nested layout tables, font
    - `inject_viewport.py` — adds responsive viewport meta (fixes ~270 findings)
    - `wrap_nav.py` — wraps Kyle's section table in `<nav role="navigation">` (fixes ~90 findings)
    - `strip_trackers.py` — removes dead analytics scripts
-   - `inject_banner.py` — stamps the rainbow "Mirrored from kylepounds.com" strip
+   - `inject_banner.py` — publishes the archive navigation, news pages, and current announcements
    - `inject_fonts.py` — links `/fonts/fonts.css`
    - `build_fonts_css.py` — regenerates the `@font-face` rules from the actual `.otf` files on disk
 3. **Re-ingest the Library** — `kp-ingest` walks all 2,700+ mirrored pages, classifies each into one of 8 page types, extracts clean reader HTML where possible. Stored in SQLite FTS5.
@@ -104,3 +104,22 @@ We don't want to fork or rewrite Kyle's site. He's the author; his structure is 
 ---
 
 *This README is rendered as the "Full Audit" tab on the [/patrol/](https://kylepounds.org/patrol/) dashboard.*
+
+## Archive news and announcements
+
+Edit `scripts/news/posts.json` to add a dated article. Each entry has a stable
+`/news/<slug>/` address. Optional `announcement` text appears in the scrolling
+header, and `announcement_until` retires that notice after its ISO date while
+keeping the article available. Future-dated entries remain unpublished until
+the daily build reaches their date. Keep the newest entries first.
+
+`python3 scripts/inject_banner.py <docroot>` builds the news pages/assets and
+updates archive navigation, replacing the old mirror status strip. Both the
+GitHub Actions mirror and VPS post-deploy path run it. Theme choice is persisted;
+the ticker pauses on hover/focus and supports an explicit pause button and
+reduced-motion preferences. Article sharing happens only when a visitor uses
+Copy link or their browser's Share button.
+
+The post-deploy script restarts site-patrol only if legacy model settings
+changed. It shares generation's lock and retains a deferred reload marker so a
+website sync cannot interrupt an in-flight podcast.

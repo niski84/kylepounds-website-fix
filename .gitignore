@@ -1,3 +1,5 @@
 site/
 docs/
 scripts/__pycache__/
+
+__pycache__/

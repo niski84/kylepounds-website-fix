@@ -25,6 +25,9 @@ echo "Publishing mirror to served docroot (overlay, no --delete)..."
 rsync -a "$SITE/kylepounds.com/" "$SITE/" --exclude="/kylepounds.com"
 echo "Served HTML pages now: $(find "$SITE" -name '*.html' -not -path '*/kylepounds.com/*' | wc -l)"
 
+# Publish current news independently of whether the upstream mirror changed.
+python3 "$SCRIPTS/inject_banner.py" "$SITE"
+
 # Convert any new/updated OTF files to WOFF2 (idempotent — skips up-to-date)
 python3 "$SCRIPTS/convert_to_woff2.py" "$FONTS_DIR"
 
@@ -48,9 +51,31 @@ curl -s -b /tmp/sp.txt -X POST http://localhost:8211/api/scan > /dev/null
 # (The old deepseek/deepseek-v4-flash was deprecated by OpenRouter and returns
 # "User not found" — this keeps the VPS in sync with the local config.)
 ENV_FILE=/opt/site-patrol/.env
+ENV_BEFORE=$(mktemp)
+chmod 600 "$ENV_BEFORE"
+cp "$ENV_FILE" "$ENV_BEFORE"
+trap 'rm -f "$ENV_BEFORE"' EXIT
 sed -i 's/^KYLE_ANSWER_MODEL=deepseek\/deepseek-v4-flash$/KYLE_ANSWER_MODEL=deepseek\/deepseek-v4-flash-0731/' "$ENV_FILE"
 sed -i 's/^KYLE_CLAIMS_MODEL=deepseek\/deepseek-chat$/KYLE_CLAIMS_MODEL=deepseek\/deepseek-v4-flash-0731/' "$ENV_FILE"
-systemctl restart site-patrol
+# Retain a deferred reload across runs, and take the same exclusive lock used
+# by generation preflight. This closes the check-then-restart race.
+PENDING=/opt/site-patrol/data/mirror-model-reload.pending
+if ! cmp -s "$ENV_FILE" "$ENV_BEFORE"; then touch "$PENDING"; fi
+if [ -f "$PENDING" ]; then
+  if flock -n -E 75 /opt/site-patrol/data/notebooklm-maintenance.json.lock \
+    sh -c 'systemctl restart site-patrol && rm -f "$1"' sh "$PENDING"; then
+    echo "Model configuration reloaded"
+  else
+    result=$?
+    if [ "$result" = "75" ]; then
+      echo "Deferring model config reload while podcast generation or maintenance is active"
+    else
+      echo "Model configuration reload failed: $result" >&2
+      exit "$result"
+    fi
+  fi
+fi
+rm -f "$ENV_BEFORE"
 
 echo "$DATE OK vps-post-deploy complete" >> "$STATE_LOG"
 echo "VPS post-deploy done"
