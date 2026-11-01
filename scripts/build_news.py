@@ -40,7 +40,7 @@ def header(entries, active='', today=None):
     today = today or dt.datetime.now(dt.timezone.utc).date()
     e = html.escape
     notices = [p for p in entries if p.get('announcement') and (not p.get('announcement_until') or dt.date.fromisoformat(p['announcement_until']) >= today)][:3]
-    links = ''.join(f'<a href="{url}"' + (' aria-current="page"' if name == active else '') + f'>{name}</a>' for name, url in [('Library','/patrol/#library'),('Podcasts','/patrol/#podcasts'),('News','/news/'),('Bike school','/bike-school.html')])
+    links = ''.join(f'<a href="{url}"' + (' aria-current="page"' if name == active else '') + f'>{name}</a>' for name, url in [('Library','/patrol/library.html'),('Podcasts','/patrol/podcasts'),('News','/news/'),('Bike school','/bike-school.html')])
     ticker = ''
     if notices:
         items = ''.join(f'<a href="/news/{e(p["slug"])}/">{e(p["announcement"])}</a>' for p in notices)
