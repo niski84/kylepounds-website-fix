@@ -43,7 +43,7 @@ html.kp-news { background:var(--kp-bg); color:var(--kp-text); }
 .kp-listen { padding:24px 28px; background:var(--kp-panel); margin:36px 0; border-radius:8px; }
 .kp-links, .kp-share { display:flex; flex-wrap:wrap; gap:14px 24px; }
 .kp-share { align-items:center; border-top:1px solid var(--kp-line); padding-top:28px; margin-top:42px; }
-.kp-news button { color:var(--kp-text); font:inherit; cursor:pointer; background:var(--kp-panel); border:1px solid var(--kp-line); padding:9px 16px; border-radius:5px; }
+.kp-news main button { color:var(--kp-text); font:inherit; cursor:pointer; background:var(--kp-panel); border:1px solid var(--kp-line); padding:9px 16px; border-radius:5px; }
 .kp-news button[hidden] { display:none; }
 .kp-news [role=status] { min-height:1.7em; color:var(--kp-muted); font-size:15px; overflow-wrap:anywhere; }
 .kp-news footer { padding:28px 32px; text-align:center; color:var(--kp-muted); border-top:1px solid var(--kp-line); font-size:14px; }
